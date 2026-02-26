@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { decryptString, encryptString } from "./cstring";
 import { RxReset, RxShare1 } from "react-icons/rx";
 import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 import Editor from "@monaco-editor/react";
 import { a11yDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -85,7 +86,33 @@ const App = () => {
             <div className="prose h-full w-full">
               <Markdown
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSlug]}
                 components={{
+                  a(props) {
+                    const { href, children, ...rest } = props;
+                    if (href && href.startsWith("#")) {
+                      return (
+                        <a
+                          {...rest}
+                          href={href}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const target = document.getElementById(
+                              href.slice(1),
+                            );
+                            target?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                        >
+                          {children}
+                        </a>
+                      );
+                    }
+                    return (
+                      <a href={href} {...rest}>
+                        {children}
+                      </a>
+                    );
+                  },
                   code(props) {
                     const { children, className, ...rest } = props;
                     const match = /language-(\w+)/.exec(className || "");

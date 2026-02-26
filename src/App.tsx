@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import Editor from "@monaco-editor/react";
 import { a11yDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { toast } from "react-toastify";
 
 const App = () => {
   const [ready, setReady] = useState(window.location.hash.slice(1) === "");
@@ -13,23 +14,16 @@ const App = () => {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
+    if (markdown) return;
+
     decryptString(window.location.hash.slice(1), password)
       .then((decrypted) => {
         setMarkdown(decrypted);
         setReady(true);
+        window.location.hash = "";
       })
       .catch(() => {});
-  }, [password]);
-
-  useEffect(() => {
-    if (!password || !markdown) return;
-
-    encryptString(markdown, password)
-      .then((encrypted) => {
-        window.location.hash = encrypted;
-      })
-      .catch(() => {});
-  }, [markdown, password]);
+  }, [password, markdown]);
 
   return (
     <div className="fixed inset-0 flex gap-4 overflow-auto bg-zinc-900 p-4">
@@ -38,8 +32,13 @@ const App = () => {
           <button
             className="h-9 cursor-pointer rounded-md bg-cyan-500 px-4 text-white outline-none focus:ring-2 focus:ring-cyan-200 active:bg-cyan-600"
             onClick={async () => {
-              if (!password || !markdown) return;
-              await navigator.clipboard.writeText(window.location.href);
+              if (!password) {
+                return toast.error("Please, enter a password before sharing.");
+              }
+              const url = `${window.location.href.replace("#", "")}#${await encryptString(markdown, password)}`;
+              await navigator.clipboard.writeText(url);
+
+              return toast.success("Shareable URL copied to clipboard!");
             }}
           >
             <div className="flex items-center gap-2">

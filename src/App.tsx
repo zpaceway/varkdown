@@ -4,6 +4,7 @@ import { decryptString, encryptString } from "./cstring";
 import { RxReset, RxShare1 } from "react-icons/rx";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
+import rehypeMermaid from "rehype-mermaid";
 import Editor from "@monaco-editor/react";
 import { a11yDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -86,7 +87,7 @@ const App = () => {
             <div className="prose h-full w-full">
               <Markdown
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSlug]}
+                rehypePlugins={[rehypeSlug, rehypeMermaid]}
                 components={{
                   a(props) {
                     const { href, children, ...rest } = props;

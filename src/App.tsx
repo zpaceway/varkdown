@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { decryptString, encryptString } from "./cstring";
+import { createShortLink, getShortLink } from "./shortener";
 import { RxReset, RxShare1 } from "react-icons/rx";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
@@ -47,21 +48,23 @@ const Mermaid = ({ code }: { code: string }) => {
 };
 
 const App = () => {
-  const [ready, setReady] = useState(window.location.hash.slice(1) === "");
+  const linkId = new URLSearchParams(window.location.search).get("id");
+  const [ready, setReady] = useState(!linkId);
   const [markdown, setMarkdown] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    if (markdown) return;
+    if (!linkId || markdown) return;
 
-    decryptString(window.location.hash.slice(1), password)
+    getShortLink(linkId)
+      .then((encrypted) => decryptString(encrypted, password))
       .then((decrypted) => {
         setMarkdown(decrypted);
         setReady(true);
-        window.location.hash = "";
+        window.history.replaceState({}, "", window.location.pathname);
       })
       .catch(() => {});
-  }, [password, markdown]);
+  }, [password, markdown, linkId]);
 
   return (
     <div className="fixed inset-0 flex gap-4 overflow-auto bg-zinc-900 p-4">
@@ -73,10 +76,16 @@ const App = () => {
               if (!password) {
                 return toast.error("Please, enter a password before sharing.");
               }
-              const url = `${window.location.href.replace("#", "")}#${await encryptString(markdown, password)}`;
-              await navigator.clipboard.writeText(url);
-
-              return toast.success("Shareable URL copied to clipboard!");
+              try {
+                const encrypted = await encryptString(markdown, password);
+                const id = await createShortLink(encrypted);
+                const base = window.location.origin + window.location.pathname;
+                const url = `${base}?id=${id}`;
+                await navigator.clipboard.writeText(url);
+                return toast.success("Shareable URL copied to clipboard!");
+              } catch {
+                return toast.error("Failed to create shareable link.");
+              }
             }}
           >
             <div className="flex items-center gap-2">
@@ -86,7 +95,7 @@ const App = () => {
           <button
             className="h-9 cursor-pointer rounded-md bg-rose-500 px-4 text-white outline-none focus:ring-2 focus:ring-rose-200 active:bg-rose-600"
             onClick={() => {
-              window.location.hash = "";
+              window.history.replaceState({}, "", window.location.pathname);
               setReady(true);
               setPassword("");
               setMarkdown("");

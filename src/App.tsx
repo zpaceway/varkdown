@@ -1,14 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { decryptString, encryptString } from "./cstring";
 import { RxReset, RxShare1 } from "react-icons/rx";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import rehypeMermaid from "rehype-mermaid";
+import mermaid from "mermaid";
 import Editor from "@monaco-editor/react";
 import { a11yDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { toast } from "react-toastify";
+
+mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+
+const Mermaid = ({ code }: { code: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const id = useId().replace(/:/g, "m");
+
+  useEffect(() => {
+    let cancelled = false;
+    const el = containerRef.current;
+    if (!el) return;
+
+    mermaid
+      .render(`mermaid-${id}`, code)
+      .then(({ svg }) => {
+        if (!cancelled && el) {
+          el.innerHTML = svg;
+        }
+      })
+      .catch(() => {
+        if (!cancelled && el) {
+          el.textContent = `Invalid mermaid syntax\n${code}`;
+          el.style.color = "red";
+          el.style.whiteSpace = "pre-wrap";
+        }
+        // mermaid inserts an error element into the DOM on failure; clean up
+        document.getElementById(`dmermaid-${id}`)?.remove();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code, id]);
+
+  return <div ref={containerRef} />;
+};
 
 const App = () => {
   const [ready, setReady] = useState(window.location.hash.slice(1) === "");
@@ -87,7 +123,7 @@ const App = () => {
             <div className="prose h-full w-full">
               <Markdown
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSlug, rehypeMermaid]}
+                rehypePlugins={[rehypeSlug]}
                 components={{
                   a(props) {
                     const { href, children, ...rest } = props;
@@ -117,6 +153,11 @@ const App = () => {
                   code(props) {
                     const { children, className, ...rest } = props;
                     const match = /language-(\w+)/.exec(className || "");
+                    if (match && match[1] === "mermaid") {
+                      return (
+                        <Mermaid code={String(children).replace(/\n$/, "")} />
+                      );
+                    }
                     return match ? (
                       <SyntaxHighlighter
                         PreTag="div"
